@@ -7,6 +7,7 @@ import sys
 
 from .config import Config, ConfigError
 from .noteplan_parser import parse_notes_directory
+from .noteplan_writer import mark_tasks_as_migrated
 from .sync_engine import SyncEngine
 from .todoist_client import TodoistClient
 
@@ -45,6 +46,20 @@ def main() -> None:
 
     report = engine.sync(tasks)
     logger.info("Sync report: %s", report)
+
+    # Mark successfully created tasks as migrated in source files
+    if report.created_tasks:
+        logger.info(
+            "Marking %d tasks as migrated in source files...",
+            len(report.created_tasks),
+        )
+        migration_errors = mark_tasks_as_migrated(
+            report.created_tasks, config.notes_directory
+        )
+        if migration_errors:
+            for err in migration_errors:
+                logger.error("Migration mark-back error: %s", err)
+            report.errors.extend(migration_errors)
 
     if not report.success:
         for err in report.errors:

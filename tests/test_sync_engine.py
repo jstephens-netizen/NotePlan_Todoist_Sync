@@ -104,6 +104,47 @@ class TestSyncEngine:
         assert len(report.errors) == 1
         assert not report.success
 
+    def test_created_tasks_tracked_in_report(self):
+        self.todoist.create_task.return_value = TodoistResult(
+            success=True, todoist_id="todoist-789"
+        )
+
+        task = make_task(content="Track me")
+        report = self.engine.sync([task])
+
+        assert report.created == 1
+        assert len(report.created_tasks) == 1
+        assert report.created_tasks[0].content == "Track me"
+
+    def test_failed_create_not_in_created_tasks(self):
+        self.todoist.create_task.return_value = TodoistResult(
+            success=False, error="API error"
+        )
+
+        task = make_task(content="Failing task")
+        report = self.engine.sync([task])
+
+        assert report.created == 0
+        assert report.created_tasks == []
+
+    def test_skips_tasks_with_migrated_tag(self):
+        task = make_task(
+            content="Already migrated", tags=["status/migrated"], completed=True
+        )
+        report = self.engine.sync([task])
+
+        assert report.skipped == 1
+        self.todoist.create_task.assert_not_called()
+        self.todoist.complete_task.assert_not_called()
+        self.todoist.update_task.assert_not_called()
+
+    def test_skips_open_tasks_with_migrated_tag(self):
+        task = make_task(content="Tagged open", tags=["status/migrated"])
+        report = self.engine.sync([task])
+
+        assert report.skipped == 1
+        self.todoist.create_task.assert_not_called()
+
     def test_full_sync_mixed_tasks(self):
         """Test a sync with a mix of new, existing, and completed tasks."""
         self.todoist.create_task.return_value = TodoistResult(

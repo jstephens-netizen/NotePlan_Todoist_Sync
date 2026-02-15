@@ -34,6 +34,11 @@ class SyncEngine:
         report = SyncReport()
 
         for task in noteplan_tasks:
+            # Skip tasks already marked as migrated
+            if "status/migrated" in task.tags:
+                report.skipped += 1
+                continue
+
             key = task.identity_key
             existing_todoist_id = self.state.task_map.get(key)
 
@@ -65,6 +70,7 @@ class SyncEngine:
                     self.state.task_map[key] = result.todoist_id
                     self.state.fingerprints[key] = task.fingerprint
                     report.created += 1
+                    report.created_tasks.append(task)
                 else:
                     report.errors.append(f"Create failed: {task.content} - {result.error}")
 
@@ -115,6 +121,7 @@ class SyncReport:
         self.completed: int = 0
         self.skipped: int = 0
         self.errors: list[str] = []
+        self.created_tasks: list[Task] = []
 
     @property
     def success(self) -> bool:

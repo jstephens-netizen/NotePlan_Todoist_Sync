@@ -83,6 +83,7 @@ def parse_file(file_path: Path) -> list[Task]:
     for line_number, line in enumerate(text.splitlines(), start=1):
         task = parse_task_line(line, source_file=relative_path, line_number=line_number)
         if task is not None:
+            task.source_path = file_path
             tasks.append(task)
 
     return tasks

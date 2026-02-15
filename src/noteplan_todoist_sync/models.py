@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from enum import IntEnum
+from pathlib import Path
 
 
 class Priority(IntEnum):
@@ -55,6 +56,7 @@ class Task:
     source_file: str = ""
     source_line: int = 0
     todoist_id: str | None = None
+    source_path: Path | None = None
 
     @property
     def identity_key(self) -> str:

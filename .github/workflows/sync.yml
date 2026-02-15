@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   sync:
@@ -50,6 +50,14 @@ jobs:
           TODOIST_PROJECT_ID: ${{ secrets.TODOIST_PROJECT_ID }}
           NOTES_DIR: Notes
         run: python -m noteplan_todoist_sync.main
+
+      - name: Commit migration marks
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Notes/
+          git diff --cached --quiet || git commit -m "Mark migrated tasks"
+          git push
 
       - name: Save sync state
         uses: actions/cache/save@v4

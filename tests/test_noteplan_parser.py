@@ -128,6 +128,14 @@ class TestParseTaskLine:
         assert task.identity_key == "daily.md::track me"
 
 
+    def test_task_with_status_migrated_tag(self):
+        task = parse_task_line("* [x] Migrated task #status/migrated")
+        assert task is not None
+        assert task.content == "Migrated task"
+        assert task.completed is True
+        assert "status/migrated" in task.tags
+
+
 class TestParseFile:
     def test_parse_file_with_mixed_content(self, tmp_path: Path):
         note = tmp_path / "daily.md"
@@ -152,6 +160,14 @@ class TestParseFile:
         assert tasks[1].completed is True
         assert tasks[2].due_date == date(2025, 2, 1)
         assert tasks[2].priority == Priority.MEDIUM
+
+    def test_source_path_set_by_parse_file(self, tmp_path: Path):
+        note = tmp_path / "test.md"
+        note.write_text("* A task\n")
+
+        tasks = parse_file(note)
+        assert len(tasks) == 1
+        assert tasks[0].source_path == note
 
     def test_parse_empty_file(self, tmp_path: Path):
         note = tmp_path / "empty.md"
