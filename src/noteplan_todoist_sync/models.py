@@ -68,6 +68,17 @@ class Task:
             return f"{self.source_file}::{base}"
         return base
 
+    @property
+    def fingerprint(self) -> str:
+        """Content fingerprint for change detection.
+
+        Captures everything that would be sent to Todoist so we can
+        skip update calls when nothing has changed.
+        """
+        due = self.due_date.isoformat() if self.due_date else ""
+        tags = ",".join(sorted(self.tags))
+        return f"{self.content}|{self.completed}|{self.priority}|{due}|{tags}"
+
 
 @dataclass
 class SyncState:
@@ -75,5 +86,7 @@ class SyncState:
 
     # Maps noteplan identity_key -> todoist task ID
     task_map: dict[str, str] = field(default_factory=dict)
+    # Maps noteplan identity_key -> fingerprint from last sync
+    fingerprints: dict[str, str] = field(default_factory=dict)
     # Last sync timestamp (ISO format)
     last_sync: str = ""

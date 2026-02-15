@@ -42,12 +42,16 @@ class SyncEngine:
                     result = self.todoist.complete_task(existing_todoist_id)
                     if result.success:
                         report.completed += 1
+                        self.state.fingerprints.pop(key, None)
                     else:
                         report.errors.append(f"Complete failed: {task.content} - {result.error}")
+                elif task.fingerprint == self.state.fingerprints.get(key):
+                    report.skipped += 1
                 else:
                     result = self.todoist.update_task(existing_todoist_id, task)
                     if result.success:
                         report.updated += 1
+                        self.state.fingerprints[key] = task.fingerprint
                     else:
                         report.errors.append(f"Update failed: {task.content} - {result.error}")
             else:
@@ -59,6 +63,7 @@ class SyncEngine:
                 result = self.todoist.create_task(task)
                 if result.success and result.todoist_id:
                     self.state.task_map[key] = result.todoist_id
+                    self.state.fingerprints[key] = task.fingerprint
                     report.created += 1
                 else:
                     report.errors.append(f"Create failed: {task.content} - {result.error}")
@@ -84,6 +89,7 @@ class SyncEngine:
                 data = json.loads(self.state_path.read_text())
                 return SyncState(
                     task_map=data.get("task_map", {}),
+                    fingerprints=data.get("fingerprints", {}),
                     last_sync=data.get("last_sync", ""),
                 )
             except (json.JSONDecodeError, KeyError) as e:
@@ -94,6 +100,7 @@ class SyncEngine:
         """Persist sync state to disk."""
         data = {
             "task_map": self.state.task_map,
+            "fingerprints": self.state.fingerprints,
             "last_sync": self.state.last_sync,
         }
         self.state_path.write_text(json.dumps(data, indent=2))
