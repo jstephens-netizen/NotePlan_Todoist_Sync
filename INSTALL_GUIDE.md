@@ -168,10 +168,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
 
       - name: Install sync tool
-        run: pip install noteplan-todoist-sync
+        run: pip install git+https://github.com/jstephens-netizen/NotePlan_Todoist_Sync.git
 
       - name: Restore sync state
         uses: actions/cache@v4
