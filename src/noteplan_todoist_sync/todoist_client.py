@@ -1,15 +1,22 @@
-"""Client for the Todoist REST API v2."""
+"""Client for the Todoist REST API."""
 
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 
+from requests import HTTPError
 from todoist_api_python.api import TodoistAPI
 
 from .models import Priority, Task
 
 logger = logging.getLogger(__name__)
+
+# Seconds to wait between API calls to avoid burst throttling
+REQUEST_DELAY = 0.35
+# Max retries for 429 (rate-limited) responses
+MAX_RETRIES = 3
 
 
 @dataclass
@@ -21,12 +28,40 @@ class TodoistResult:
     error: str | None = None
 
 
+def _http_status(exc: Exception) -> int | None:
+    """Extract HTTP status code from an exception, if available."""
+    if isinstance(exc, HTTPError) and exc.response is not None:
+        return exc.response.status_code
+    return None
+
+
 class TodoistClient:
     """Wrapper around the Todoist API for task sync operations."""
 
     def __init__(self, api_token: str, project_id: str | None = None):
         self.api = TodoistAPI(api_token)
         self.project_id = project_id
+        self._consecutive_forbidden = 0
+
+    def _throttle(self) -> None:
+        """Small delay between API calls to avoid burst throttling."""
+        time.sleep(REQUEST_DELAY)
+
+    def _call_api(self, fn, *args, **kwargs):
+        """Call a Todoist API method with retry on 429."""
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                self._throttle()
+                result = fn(*args, **kwargs)
+                self._consecutive_forbidden = 0
+                return result
+            except Exception as e:
+                if _http_status(e) == 429 and attempt < MAX_RETRIES:
+                    wait = 2 ** (attempt + 1)
+                    logger.warning("Rate limited, retrying in %ds...", wait)
+                    time.sleep(wait)
+                    continue
+                raise
 
     def get_all_tasks(self) -> list[Task]:
         """Fetch all tasks from Todoist (optionally filtered by project)."""
@@ -34,7 +69,7 @@ class TodoistClient:
             kwargs = {}
             if self.project_id:
                 kwargs["project_id"] = self.project_id
-            todoist_tasks = self.api.get_tasks(**kwargs)
+            todoist_tasks = self._call_api(self.api.get_tasks, **kwargs)
         except Exception as e:
             logger.error("Failed to fetch tasks from Todoist: %s", e)
             return []
@@ -65,6 +100,13 @@ class TodoistClient:
 
     def create_task(self, task: Task) -> TodoistResult:
         """Create a new task in Todoist."""
+        if self._consecutive_forbidden >= 3:
+            return TodoistResult(
+                success=False,
+                error="Skipped — Todoist returned 403 Forbidden on previous requests "
+                "(possible active task limit reached)",
+            )
+
         try:
             kwargs: dict = {
                 "content": task.content,
@@ -80,11 +122,19 @@ class TodoistClient:
             if task.tags:
                 kwargs["labels"] = task.tags
 
-            result = self.api.add_task(**kwargs)
+            result = self._call_api(self.api.add_task, **kwargs)
             logger.info("Created task in Todoist: %s (id=%s)", task.content, result.id)
             return TodoistResult(success=True, todoist_id=result.id)
 
         except Exception as e:
+            if _http_status(e) == 403:
+                self._consecutive_forbidden += 1
+                if self._consecutive_forbidden >= 3:
+                    logger.error(
+                        "Todoist returned 403 Forbidden 3 times in a row — "
+                        "you may have hit your plan's active task limit. "
+                        "Skipping remaining creates."
+                    )
             logger.error("Failed to create task '%s': %s", task.content, e)
             return TodoistResult(success=False, error=str(e))
 
@@ -102,7 +152,7 @@ class TodoistClient:
             if task.tags:
                 kwargs["labels"] = task.tags
 
-            self.api.update_task(task_id=todoist_id, **kwargs)
+            self._call_api(self.api.update_task, task_id=todoist_id, **kwargs)
             logger.info("Updated task in Todoist: %s (id=%s)", task.content, todoist_id)
             return TodoistResult(success=True, todoist_id=todoist_id)
 
@@ -113,7 +163,7 @@ class TodoistClient:
     def complete_task(self, todoist_id: str) -> TodoistResult:
         """Mark a task as complete in Todoist."""
         try:
-            self.api.close_task(task_id=todoist_id)
+            self._call_api(self.api.close_task, task_id=todoist_id)
             logger.info("Completed task in Todoist: id=%s", todoist_id)
             return TodoistResult(success=True, todoist_id=todoist_id)
 
