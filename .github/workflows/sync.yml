@@ -1,4 +1,4 @@
-name: Sync NotePlan → Todoist
+name: Sync NotePlan to Todoist
 
 on:
   # Run on push when notes change
