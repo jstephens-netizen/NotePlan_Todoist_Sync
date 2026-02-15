@@ -75,7 +75,7 @@ class TodoistClient:
                 kwargs["project_id"] = self.project_id
 
             if task.due_date:
-                kwargs["due_date"] = task.due_date.isoformat()
+                kwargs["due_date"] = task.due_date
 
             if task.tags:
                 kwargs["labels"] = task.tags
@@ -97,7 +97,7 @@ class TodoistClient:
             }
 
             if task.due_date:
-                kwargs["due_date"] = task.due_date.isoformat()
+                kwargs["due_date"] = task.due_date
 
             if task.tags:
                 kwargs["labels"] = task.tags
