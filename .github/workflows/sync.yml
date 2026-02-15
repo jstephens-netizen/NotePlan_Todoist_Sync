@@ -34,10 +34,10 @@ jobs:
         run: pip install git+https://github.com/jstephens-netizen/NotePlan_Todoist_Sync.git
 
       - name: Restore sync state
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: .sync_state.json
-          key: sync-state-${{ github.sha }}
+          key: sync-state-${{ github.run_id }}
           restore-keys: |
             sync-state-
 
@@ -47,3 +47,10 @@ jobs:
           TODOIST_PROJECT_ID: ${{ secrets.TODOIST_PROJECT_ID }}
           NOTES_DIR: Notes
         run: python -m noteplan_todoist_sync.main
+
+      - name: Save sync state
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .sync_state.json
+          key: sync-state-${{ github.run_id }}

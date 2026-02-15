@@ -60,12 +60,13 @@ class Task:
     def identity_key(self) -> str:
         """A stable key for matching tasks across syncs.
 
-        Uses the source file and line as the primary identity,
-        falling back to content-based matching.
+        Uses source file + content so the key survives line-number
+        changes when tasks are added/removed above.
         """
-        if self.source_file and self.source_line:
-            return f"{self.source_file}:{self.source_line}"
-        return self.content.strip().lower()
+        base = self.content.strip().lower()
+        if self.source_file:
+            return f"{self.source_file}::{base}"
+        return base
 
 
 @dataclass

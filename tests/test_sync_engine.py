@@ -89,8 +89,8 @@ class TestSyncEngine:
 
         # Load a new engine and verify it picks up the state
         engine2 = SyncEngine(todoist=self.todoist, state_path=self.state_path)
-        assert "note.md:3" in engine2.state.task_map
-        assert engine2.state.task_map["note.md:3"] == "todoist-456"
+        assert "note.md::persist me" in engine2.state.task_map
+        assert engine2.state.task_map["note.md::persist me"] == "todoist-456"
 
     def test_reports_errors(self):
         self.todoist.create_task.return_value = TodoistResult(
@@ -121,8 +121,8 @@ class TestSyncEngine:
         completed_task = make_task(content="All done", source_line=3, completed=True)
         skipped_task = make_task(content="Already done", source_line=4, completed=True)
 
-        self.engine.state.task_map["test.md:2"] = "existing-1"
-        self.engine.state.task_map["test.md:3"] = "existing-2"
+        self.engine.state.task_map[existing_task.identity_key] = "existing-1"
+        self.engine.state.task_map[completed_task.identity_key] = "existing-2"
 
         report = self.engine.sync([new_task, existing_task, completed_task, skipped_task])
 

@@ -125,7 +125,7 @@ class TestParseTaskLine:
         assert task is not None
         assert task.source_file == "daily.md"
         assert task.source_line == 5
-        assert task.identity_key == "daily.md:5"
+        assert task.identity_key == "daily.md::track me"
 
 
 class TestParseFile:
