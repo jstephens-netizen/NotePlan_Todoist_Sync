@@ -34,7 +34,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install sync tool
-        run: pip install .
+        run: pip install git+https://github.com/jstephens-netizen/NotePlan_Todoist_Sync.git
 
       - name: Restore sync state
         uses: actions/cache/restore@v4
