@@ -1,17 +1,18 @@
 """Parser for NotePlan markdown files.
 
 NotePlan task format:
-    - [ ] Task content #tag1 #tag2 >2024-01-15 !!
-    - [x] Completed task
+    * Open task #tag1 #domain/subtag >2024-01-15 !!
+    * [x] Completed task @done(2024-01-15 12:00 PM)
 
 Markers:
-    - #tag        → tag/label
-    - >YYYY-MM-DD → due date
-    - >today      → due today
-    - >tomorrow   → due tomorrow
-    - !           → low priority
-    - !!          → medium priority
-    - !!!         → high priority
+    - #tag or #domain/subtag → tag/label (hierarchical tags supported)
+    - >YYYY-MM-DD            → due date
+    - >today                 → due today
+    - >tomorrow              → due tomorrow
+    - !                      → low priority
+    - !!                     → medium priority
+    - !!!                    → high priority
+    - @done(...)             → completion timestamp (stripped)
 """
 
 from __future__ import annotations
@@ -23,10 +24,12 @@ from pathlib import Path
 from .models import Priority, Task
 
 # Regex patterns for NotePlan task elements
-TASK_PATTERN = re.compile(r"^(\s*)- \[([ x])\]\s+(.+)$")
-TAG_PATTERN = re.compile(r"#([\w-]+)")
+# Matches: "* [x] task" (completed) or "* task" (open)
+TASK_PATTERN = re.compile(r"^(\s*)\*\s+(?:\[(x)\]\s+)?(.+)$")
+TAG_PATTERN = re.compile(r"#([\w/-]+)")
 DUE_DATE_PATTERN = re.compile(r">((\d{4}-\d{2}-\d{2})|today|tomorrow)")
 PRIORITY_PATTERN = re.compile(r"(?<!\w)(!{1,3})(?!\w|[^\s])")
+DONE_PATTERN = re.compile(r"\s*@done\([^)]*\)")
 
 
 def parse_task_line(line: str, source_file: str = "", line_number: int = 0) -> Task | None:
@@ -41,7 +44,10 @@ def parse_task_line(line: str, source_file: str = "", line_number: int = 0) -> T
     completed = match.group(2) == "x"
     raw_content = match.group(3)
 
-    # Extract tags
+    # Strip @done(...) suffix
+    raw_content = DONE_PATTERN.sub("", raw_content)
+
+    # Extract tags (supports hierarchical like #domain/infrastructure)
     tags = TAG_PATTERN.findall(raw_content)
 
     # Extract due date

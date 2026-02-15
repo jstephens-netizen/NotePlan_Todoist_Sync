@@ -26,7 +26,7 @@ The tool reads your markdown files looking for lines that look like tasks. Here'
 flowchart TD
     subgraph noteplan ["Your NotePlan Note"]
         direction TB
-        N1["- [ ] Buy groceries #errands >2025-03-01 !!"]
+        N1["* Buy groceries #errands >2025-03-01 !!"]
     end
 
     subgraph todoist ["What appears in Todoist"]
@@ -47,9 +47,9 @@ Here's the cheat sheet for what the tool understands:
 
 | What you write | What it means | What happens in Todoist |
 |---|---|---|
-| `- [ ] Do something` | An open task | A new task gets created |
-| `- [x] Did something` | A completed task | The task gets checked off |
-| `#errands` | A tag | Becomes a Todoist label |
+| `* Do something` | An open task | A new task gets created |
+| `* [x] Did something` | A completed task | The task gets checked off |
+| `#errands` or `#domain/ops` | A tag (hierarchical supported) | Becomes a Todoist label |
 | `>2025-03-01` | A due date | Sets the due date |
 | `>today` | Due today | Sets due date to today |
 | `>tomorrow` | Due tomorrow | Sets due date to tomorrow |
@@ -57,7 +57,7 @@ Here's the cheat sheet for what the tool understands:
 | `!!` | Medium priority | Orange priority flag |
 | `!!!` | High priority | Red priority flag |
 
-Anything that *isn't* a task line (headings, paragraphs, bullet points without checkboxes) is completely ignored. Your notes stay yours.
+Anything that *isn't* a task line (headings, paragraphs, plain text) is completely ignored. Your notes stay yours.
 
 ---
 
@@ -281,14 +281,14 @@ Here's a real example of a note file that the tool can read:
 # Weekly Planning
 
 ## Work
-- [ ] Finish Q1 report #work >2025-03-15 !!!
-- [ ] Review Sarah's proposal #work #review !!
-- [x] Submit timesheet #work
+* Finish Q1 report #work >2025-03-15 !!!
+* Review Sarah's proposal #work #review !!
+* [x] Submit timesheet #work @done(2025-03-01 09:00 AM)
 
 ## Personal
-- [ ] Buy birthday gift for Mom #personal #shopping >2025-03-10
-- [ ] Call plumber #home !
-- [ ] Book flights for vacation #personal #travel >tomorrow
+* Buy birthday gift for Mom #personal/shopping >2025-03-10
+* Call plumber #home !
+* Book flights for vacation #personal/travel >tomorrow
 
 ## Notes
 Remember to check the project timeline before the Friday meeting.
@@ -305,8 +305,8 @@ This would create 5 tasks in Todoist (the completed "Submit timesheet" is skippe
 mindmap
   root((Task Format))
     Status
-      - [ ] Open
-      - [x] Done
+      * Open task
+      * [x] Done
     Priority
       ! Low
       !! Medium
@@ -317,7 +317,7 @@ mindmap
       >tomorrow
     Tags
       #work
-      #personal
+      #domain/ops
       #any-tag-name
 ```
 
