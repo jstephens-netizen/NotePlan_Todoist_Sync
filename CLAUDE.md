@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Project Overview
-NotePlan → Todoist sync tool. Parses NotePlan markdown files from the `notes/` directory and syncs tasks to Todoist via GitHub Actions.
+NotePlan → Todoist sync tool. Parses NotePlan markdown files from the `notes/` directory and syncs tasks to Todoist via GitHub Actions. After successful sync, tasks are marked as `* [x] ... #status/migrated` in the source files and committed back.
 
 ## Commands
 - `pip install -e ".[dev]"` — install with dev deps
@@ -13,12 +13,13 @@ NotePlan → Todoist sync tool. Parses NotePlan markdown files from the `notes/`
 - `src/noteplan_todoist_sync/` — main package
   - `models.py` — Task, Priority, SyncState dataclasses
   - `noteplan_parser.py` — parses NotePlan markdown → Task objects
+  - `noteplan_writer.py` — marks synced tasks as `* [x] ... #status/migrated` in source files
   - `todoist_client.py` — wraps todoist-api-python SDK
   - `sync_engine.py` — orchestrates sync, manages state in `.sync_state.json`
   - `config.py` — loads config from environment variables
   - `main.py` — entry point
 - `notes/` — NotePlan markdown files live here
-- `.github/workflows/sync.yml` — runs sync on push to main + every 15 min
+- `.github/workflows/sync.yml` — runs sync on push to main + hourly, commits migration marks back
 - `.github/workflows/test.yml` — CI: lint + tests
 
 ## Conventions
