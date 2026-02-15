@@ -1,0 +1,50 @@
+name: Sync NotePlan → Todoist
+
+on:
+  # Run on push when notes change
+  push:
+    branches: [main]
+    paths:
+      - "notes/**"
+
+  # Run on a schedule (every 15 minutes)
+  schedule:
+    - cron: "*/15 * * * *"
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install .
+
+      - name: Restore sync state
+        uses: actions/cache@v4
+        with:
+          path: .sync_state.json
+          key: sync-state-${{ github.sha }}
+          restore-keys: |
+            sync-state-
+
+      - name: Run sync
+        env:
+          TODOIST_API_TOKEN: ${{ secrets.TODOIST_API_TOKEN }}
+          TODOIST_PROJECT_ID: ${{ secrets.TODOIST_PROJECT_ID }}
+          NOTES_DIR: notes
+        run: python -m noteplan_todoist_sync.main
