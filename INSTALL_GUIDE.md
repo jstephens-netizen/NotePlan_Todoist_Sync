@@ -116,17 +116,17 @@ flowchart TD
 
 ### Step 3: Make sure your notes are in the right place
 
-The tool looks for markdown files (`.md`) inside a folder called **`notes/`** in your repo. If your notes are already there, great — skip ahead!
+The tool looks for markdown files (`.md`) inside a folder called **`Notes/`** in your repo. If your notes are already there, great — skip ahead!
 
 If your notes are in a different folder (like the root of the repo, or a folder called `docs/`), you have two options:
 
-**Option A: Move your notes into a `notes/` folder**
+**Option A: Move your notes into a `Notes/` folder**
 
-This is the simplest. Just move or reorganize your markdown files so they're under `notes/`.
+This is the simplest. Just move or reorganize your markdown files so they're under `Notes/`.
 
 **Option B: Tell the tool where your notes are**
 
-In the workflow file (we'll add this in the next step), you can change `NOTES_DIR: notes` to point to wherever your notes live, like `NOTES_DIR: docs` or `NOTES_DIR: .` (for the root).
+In the workflow file (we'll add this in the next step), you can change `NOTES_DIR: Notes` to point to wherever your notes live, like `NOTES_DIR: docs` or `NOTES_DIR: .` (for the root).
 
 ### Step 4: Add the sync workflow to your repo
 
@@ -144,7 +144,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "notes/**"
+      - "Notes/**"
 
   # Also run every 15 minutes
   schedule:
@@ -184,11 +184,11 @@ jobs:
         env:
           TODOIST_API_TOKEN: ${{ secrets.TODOIST_API_TOKEN }}
           TODOIST_PROJECT_ID: ${{ secrets.TODOIST_PROJECT_ID }}
-          NOTES_DIR: notes
+          NOTES_DIR: Notes
         run: python -m noteplan_todoist_sync.main
 ```
 
-> **If your notes aren't in a `notes/` folder**, change `NOTES_DIR: notes` on the second-to-last line to match your folder name. Also update the `paths:` line near the top (e.g., change `"notes/**"` to `"docs/**"`).
+> **If your notes aren't in a `Notes/` folder**, change `NOTES_DIR: Notes` on the second-to-last line to match your folder name. Also update the `paths:` line near the top (e.g., change `"Notes/**"` to `"docs/**"`).
 
 **How to create this file on GitHub (without the command line):**
 1. Go to your repo on GitHub
@@ -230,7 +230,7 @@ sequenceDiagram
     participant SE as Sync Engine
     participant TD as Todoist API
 
-    GH->>NP: 1. Read all .md files from notes/
+    GH->>NP: 1. Read all .md files from Notes/
     NP->>SE: 2. Parse tasks from markdown
     SE->>SE: 3. Compare with last sync state
     SE->>TD: 4a. Create new tasks
@@ -256,7 +256,7 @@ Click on the failed run to see the logs. Common issues:
 - **"Configuration error: TODOIST_API_TOKEN environment variable is required"** — The secret wasn't set correctly. Go back to Step 2 and make sure the name is exactly `TODOIST_API_TOKEN` (all caps, with underscores).
 
 - **"No tasks found, nothing to sync"** — The tool couldn't find any tasks. Check that:
-  - Your notes are in the `notes/` folder (or the folder you specified)
+  - Your notes are in the `Notes/` folder (or the folder you specified)
   - Your tasks use the `- [ ]` format (dash, space, brackets, space)
   - Your files have the `.md` extension
 
