@@ -61,7 +61,7 @@ Anything that *isn't* a task line (headings, paragraphs, bullet points without c
 
 ---
 
-## Setup (one-time, about 10 minutes)
+## Setup (one-time, about 15 minutes)
 
 ### Step 1: Get your Todoist API token
 
@@ -83,9 +83,33 @@ flowchart LR
 
 > **Keep this token private!** Anyone with this token can modify your Todoist. We'll store it safely as a GitHub "secret" in the next step — it won't be visible in your code.
 
-### Step 2: Add the API token to your GitHub repo
+### Step 2: Create a GitHub Personal Access Token (PAT)
 
-GitHub "Secrets" are a safe place to store sensitive values like API tokens. The sync tool will be able to read them, but they'll never show up in your code or logs.
+The sync tool lives in a separate private GitHub repo. For your notes repo to be able to download it, you need to create a "Personal Access Token" — think of it as a key that lets one of your repos access another.
+
+1. Go to [github.com/settings/tokens?type=beta](https://github.com/settings/tokens?type=beta) (this takes you to your GitHub token settings)
+2. Click **"Generate new token"**
+3. Give it a name like `noteplan-sync`
+4. Under **"Repository access"**, select **"Only select repositories"**, then pick the **NotePlan_Todoist_Sync** repo
+5. Under **"Permissions" → "Repository permissions"**, set **Contents** to **Read-only** (that's all it needs)
+6. Click **"Generate token"**
+7. **Copy the token** — it starts with `github_pat_...`. You won't be able to see it again!
+
+```mermaid
+flowchart TD
+    A["github.com/settings/tokens"] --> B["Generate new token"]
+    B --> C["Name: noteplan-sync"]
+    C --> D["Repository access:\nOnly select repositories\n→ NotePlan_Todoist_Sync"]
+    D --> E["Permissions:\nContents → Read-only"]
+    E --> F["Generate token"]
+    F --> G["Copy the token!\ngithub_pat_..."]
+
+    style G fill:#6F42C1,color:#fff
+```
+
+### Step 3: Add secrets to your GitHub repo
+
+GitHub "Secrets" are a safe place to store sensitive values like API tokens. The sync tool will be able to read them, but they'll never show up in your code or logs. You need to add **two** secrets.
 
 1. Go to your GitHub repo in the browser (the one with your notes)
 2. Click the **Settings** tab at the top of the repo
@@ -94,27 +118,32 @@ GitHub "Secrets" are a safe place to store sensitive values like API tokens. The
 
 3. In the left sidebar, click **Secrets and variables**, then **Actions**
 4. Click the green **"New repository secret"** button
-5. Fill in:
+5. Add the **first** secret:
    - **Name:** `TODOIST_API_TOKEN`
-   - **Secret:** paste the API token you copied in Step 1
-6. Click **"Add secret"**
+   - **Secret:** paste the Todoist API token from Step 1
+6. Click **"Add secret"**, then click **"New repository secret"** again
+7. Add the **second** secret:
+   - **Name:** `SYNC_TOOL_PAT`
+   - **Secret:** paste the GitHub Personal Access Token from Step 2
 
 ```mermaid
 flowchart TD
     A["Your GitHub Repo"] --> B["Settings tab"]
     B --> C["Secrets and variables → Actions"]
     C --> D["New repository secret"]
-    D --> E["Name: TODOIST_API_TOKEN\nValue: (your token)"]
-    E --> F["Add secret"]
+    D --> E["1. TODOIST_API_TOKEN\n(from Todoist)"]
+    E --> F["New repository secret"]
+    F --> G["2. SYNC_TOOL_PAT\n(from GitHub)"]
+    G --> H["Done!"]
 
-    style F fill:#2EA043,color:#fff
+    style H fill:#2EA043,color:#fff
 ```
 
-**Optional:** If you want tasks to go to a specific Todoist project instead of your Inbox, add a second secret:
+**Optional:** If you want tasks to go to a specific Todoist project instead of your Inbox, add a third secret:
 - **Name:** `TODOIST_PROJECT_ID`
 - **Secret:** your project ID (you can find this in the Todoist URL when viewing a project — it's the number at the end, like `https://todoist.com/app/project/1234567890` → the ID is `1234567890`)
 
-### Step 3: Make sure your notes are in the right place
+### Step 4: Make sure your notes are in the right place
 
 The tool looks for markdown files (`.md`) inside a folder called **`notes/`** in your repo. If your notes are already there, great — skip ahead!
 
@@ -128,7 +157,7 @@ This is the simplest. Just move or reorganize your markdown files so they're und
 
 In the workflow file (we'll add this in the next step), you can change `NOTES_DIR: notes` to point to wherever your notes live, like `NOTES_DIR: docs` or `NOTES_DIR: .` (for the root).
 
-### Step 4: Add the sync workflow to your repo
+### Step 5: Add the sync workflow to your repo
 
 This is the file that tells GitHub "hey, run this sync tool for me." You need to create it in a specific spot.
 
@@ -161,8 +190,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout your notes
         uses: actions/checkout@v4
+
+      - name: Checkout sync tool
+        uses: actions/checkout@v4
+        with:
+          repository: jstephens-netizen/NotePlan_Todoist_Sync
+          path: _sync_tool
+          token: ${{ secrets.SYNC_TOOL_PAT }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -170,7 +206,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install sync tool
-        run: pip install git+https://github.com/jstephens-netizen/NotePlan_Todoist_Sync.git
+        run: pip install ./_sync_tool
 
       - name: Restore sync state
         uses: actions/cache@v4
@@ -197,7 +233,7 @@ jobs:
 4. Paste the YAML content above
 5. Click **"Commit changes"**
 
-### Step 5: Test it out
+### Step 6: Test it out
 
 Let's make sure everything is connected.
 
@@ -253,7 +289,9 @@ The tool keeps a "memory" of what it's already synced (called the sync state). T
 
 Click on the failed run to see the logs. Common issues:
 
-- **"Configuration error: TODOIST_API_TOKEN environment variable is required"** — The secret wasn't set correctly. Go back to Step 2 and make sure the name is exactly `TODOIST_API_TOKEN` (all caps, with underscores).
+- **"fatal: could not read Username for 'https://github.com'"** — The `SYNC_TOOL_PAT` secret is missing or expired. Go back to Step 2 and create a new Personal Access Token, then update the secret in Step 3.
+
+- **"Configuration error: TODOIST_API_TOKEN environment variable is required"** — The `TODOIST_API_TOKEN` secret wasn't set correctly. Go back to Step 3 and make sure the name is exactly `TODOIST_API_TOKEN` (all caps, with underscores).
 
 - **"No tasks found, nothing to sync"** — The tool couldn't find any tasks. Check that:
   - Your notes are in the `notes/` folder (or the folder you specified)
