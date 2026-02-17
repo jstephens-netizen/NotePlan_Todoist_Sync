@@ -20,6 +20,7 @@ from __future__ import annotations
 import re
 from datetime import date, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 from .models import Priority, Task
 
@@ -30,6 +31,7 @@ TAG_PATTERN = re.compile(r"#([\w/-]+)")
 DUE_DATE_PATTERN = re.compile(r">((\d{4}-\d{2}-\d{2})|today|tomorrow)")
 PRIORITY_PATTERN = re.compile(r"(?<!\w)(!{1,3})(?!\w|[^\s])")
 DONE_PATTERN = re.compile(r"\s*@done\([^)]*\)")
+HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.+)$")
 
 
 def parse_task_line(line: str, source_file: str = "", line_number: int = 0) -> Task | None:
@@ -80,10 +82,26 @@ def parse_file(file_path: Path) -> list[Task]:
     text = file_path.read_text(encoding="utf-8")
     relative_path = file_path.name
 
+    note_title: str | None = None
+    current_section: str | None = None
+
     for line_number, line in enumerate(text.splitlines(), start=1):
+        # Track headings for context
+        heading_match = HEADING_PATTERN.match(line)
+        if heading_match:
+            level = len(heading_match.group(1))
+            heading_text = heading_match.group(2).strip()
+            if level == 1 and note_title is None:
+                note_title = heading_text
+            else:
+                current_section = heading_text
+
         task = parse_task_line(line, source_file=relative_path, line_number=line_number)
         if task is not None:
             task.source_path = file_path
+            task.description = _build_description(
+                file_path, note_title, current_section
+            )
             tasks.append(task)
 
     return tasks
@@ -127,3 +145,39 @@ def _parse_priority(text: str) -> Priority:
     if not match:
         return Priority.NONE
     return Priority.from_noteplan(match.group(1))
+
+
+def _noteplan_deep_link(file_path: Path) -> str:
+    """Build a noteplan:// deep link to open the source note.
+
+    NotePlan supports x-callback-url to open a note by its title,
+    which is the filename without the .md extension.
+    """
+    note_title = file_path.stem
+    return f"noteplan://x-callback-url/openNote?noteTitle={quote(note_title)}"
+
+
+def _build_description(
+    file_path: Path,
+    note_title: str | None,
+    section: str | None,
+) -> str:
+    """Compose a Todoist description with note context and a deep link.
+
+    The description includes:
+    - The note title (first H1 heading or filename)
+    - The section heading the task falls under (if any)
+    - A NotePlan deep link to jump back to the source note
+    """
+    parts: list[str] = []
+
+    display_title = note_title or file_path.stem
+    parts.append(f"From: {display_title}")
+
+    if section:
+        parts.append(f"Section: {section}")
+
+    deep_link = _noteplan_deep_link(file_path)
+    parts.append(f"[Open in NotePlan]({deep_link})")
+
+    return "\n".join(parts)

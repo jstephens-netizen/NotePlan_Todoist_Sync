@@ -122,6 +122,9 @@ class TodoistClient:
             if task.tags:
                 kwargs["labels"] = task.tags
 
+            if task.description:
+                kwargs["description"] = task.description
+
             result = self._call_api(self.api.add_task, **kwargs)
             logger.info("Created task in Todoist: %s (id=%s)", task.content, result.id)
             return TodoistResult(success=True, todoist_id=result.id)
@@ -151,6 +154,9 @@ class TodoistClient:
 
             if task.tags:
                 kwargs["labels"] = task.tags
+
+            if task.description:
+                kwargs["description"] = task.description
 
             self._call_api(self.api.update_task, task_id=todoist_id, **kwargs)
             logger.info("Updated task in Todoist: %s (id=%s)", task.content, todoist_id)

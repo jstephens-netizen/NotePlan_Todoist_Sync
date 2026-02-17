@@ -5,7 +5,12 @@ from pathlib import Path
 from textwrap import dedent
 
 from noteplan_todoist_sync.models import Priority
-from noteplan_todoist_sync.noteplan_parser import parse_file, parse_task_line
+from noteplan_todoist_sync.noteplan_parser import (
+    _build_description,
+    _noteplan_deep_link,
+    parse_file,
+    parse_task_line,
+)
 
 
 class TestParseTaskLine:
@@ -175,3 +180,80 @@ class TestParseFile:
 
         tasks = parse_file(note)
         assert tasks == []
+
+    def test_description_includes_note_title(self, tmp_path: Path):
+        note = tmp_path / "sprint.md"
+        note.write_text("# Sprint Planning\n\n* Review backlog\n")
+
+        tasks = parse_file(note)
+        assert len(tasks) == 1
+        assert "From: Sprint Planning" in tasks[0].description
+
+    def test_description_includes_section_heading(self, tmp_path: Path):
+        note = tmp_path / "meeting.md"
+        note.write_text("# Weekly Standup\n\n## Action Items\n* Follow up with QA\n")
+
+        tasks = parse_file(note)
+        assert len(tasks) == 1
+        assert "From: Weekly Standup" in tasks[0].description
+        assert "Section: Action Items" in tasks[0].description
+
+    def test_description_includes_deep_link(self, tmp_path: Path):
+        note = tmp_path / "meeting.md"
+        note.write_text("# Weekly Standup\n* Do something\n")
+
+        tasks = parse_file(note)
+        assert len(tasks) == 1
+        assert "noteplan://x-callback-url/openNote?noteTitle=meeting" in tasks[0].description
+
+    def test_description_uses_filename_when_no_h1(self, tmp_path: Path):
+        note = tmp_path / "My Meeting Notes.md"
+        note.write_text("## Tasks\n* Call Bob\n")
+
+        tasks = parse_file(note)
+        assert len(tasks) == 1
+        assert "From: My Meeting Notes" in tasks[0].description
+
+    def test_section_tracks_nearest_heading(self, tmp_path: Path):
+        note = tmp_path / "notes.md"
+        note.write_text(
+            "# Project Notes\n\n"
+            "## Design\n* Wireframe review\n\n"
+            "## Development\n* Write API endpoint\n"
+        )
+
+        tasks = parse_file(note)
+        assert len(tasks) == 2
+        assert "Section: Design" in tasks[0].description
+        assert "Section: Development" in tasks[1].description
+
+
+class TestNoteplanDeepLink:
+    def test_simple_filename(self, tmp_path: Path):
+        link = _noteplan_deep_link(tmp_path / "daily.md")
+        assert link == "noteplan://x-callback-url/openNote?noteTitle=daily"
+
+    def test_filename_with_spaces(self, tmp_path: Path):
+        link = _noteplan_deep_link(tmp_path / "Sprint Planning 2025.md")
+        assert "Sprint%20Planning%202025" in link
+
+    def test_filename_with_special_chars(self, tmp_path: Path):
+        link = _noteplan_deep_link(tmp_path / "Q&A Session.md")
+        assert "Q%26A%20Session" in link
+
+
+class TestBuildDescription:
+    def test_with_title_and_section(self, tmp_path: Path):
+        desc = _build_description(tmp_path / "note.md", "My Meeting", "Action Items")
+        assert "From: My Meeting" in desc
+        assert "Section: Action Items" in desc
+        assert "Open in NotePlan" in desc
+
+    def test_without_section(self, tmp_path: Path):
+        desc = _build_description(tmp_path / "note.md", "My Meeting", None)
+        assert "From: My Meeting" in desc
+        assert "Section:" not in desc
+
+    def test_without_title_uses_filename(self, tmp_path: Path):
+        desc = _build_description(tmp_path / "daily.md", None, None)
+        assert "From: daily" in desc

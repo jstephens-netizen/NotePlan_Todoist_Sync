@@ -52,6 +52,7 @@ class Task:
     priority: Priority = Priority.NONE
     due_date: date | None = None
     tags: list[str] = field(default_factory=list)
+    description: str = ""
     # Tracks where this task lives
     source_file: str = ""
     source_line: int = 0
@@ -79,7 +80,7 @@ class Task:
         """
         due = self.due_date.isoformat() if self.due_date else ""
         tags = ",".join(sorted(self.tags))
-        return f"{self.content}|{self.completed}|{self.priority}|{due}|{tags}"
+        return f"{self.content}|{self.completed}|{self.priority}|{due}|{tags}|{self.description}"
 
 
 @dataclass
